@@ -2,31 +2,21 @@
 
 ## Project Summary
 
-Medical records in the United States are highly fragmented across hospitals, laboratories, clinics, and insurance systems. Patients often rely on multiple independent portals to access their information, and these portals do not allow structured querying or relational exploration of records. This fragmentation results in inefficiencies and limited transparency when individuals attempt to review their own medical histories.
+Medical records in the United States are highly fragmented across hospitals, labs, clinics, and insurance providers. Patients often have to log into multiple independent portals just to piece together their own medical history. Even then, these systems rarely allow structured searching or meaningful exploration of records. This lack of integration creates inefficiency, confusion, and limited transparency for individuals trying to understand their own healthcare data.
 
-Our project proposes the design and implementation of a relational Personal Health Record (PHR) management system. The application will centralize patient data including visits, diagnoses, lab results, medications, and vitals into a well-structured relational database. The system focuses strictly on record organization, relational modeling, constraint enforcement, and SQL-backed querying — not medical diagnosis or advice. The goal is to demonstrate rigorous conceptual and logical database design that supports advanced querying and integrity preservation.
+Our project proposes the design and implementation of a relational Personal Health Record (PHR) management system. The goal is to centralize key patient information — including visits, diagnoses, lab results, medications, and vitals — into a single, well-structured relational database. Rather than focusing on medical recommendations or diagnosis, the system emphasizes strong database design principles: clean relational modeling, well-defined constraints, and powerful SQL-based querying.
 
 ---
 
 ## Creative Component
 
-Our creative component is an AI-assisted relational query interface built using a Retrieval-Augmented Generation (RAG) architecture.
+Our creative component is an AI-assisted query interface that allows users to interact with the database using natural language. Instead of manually writing SQL queries, users can type requests such as “Show me all cholesterol tests from 2023” or “Calculate BMI for this patient,” and the system will translate those requests into structured SQL queries.
 
-This component will:
+The AI layer is built using a Retrieval-Augmented Generation (RAG) approach. It does not generate medical advice or predictions. Instead, it acts strictly as an interface between user input and the relational database. The system retrieves relevant schema information, constructs validated SQL queries, and executes them safely.
 
-- Translate controlled natural language queries into SQL.
-- Retrieve records using structured SQL queries.
-- Perform controlled calculations such as BMI and aggregated lab averages.
-- Trigger stored procedures safely through validated inputs.
+This feature enhances usability while still preserving database integrity. The AI must be aware of the database schema, table relationships, constraints, and stored procedures in order to generate correct queries. It also interacts directly with transactions and stored procedures when users request calculations such as BMI or aggregated yearly lab statistics.
 
-The AI layer does not provide medical advice. It serves only as an interface between user input and relational tables.
-
-This qualifies as a creative component because:
-
-- It translates structured prompts into validated SQL queries.
-- It integrates with stored procedures and triggers.
-- It requires schema awareness and constraint compliance.
-- It goes beyond a simple UI by programmatically interacting with advanced database functions.
+Because it integrates natural language processing with relational database logic, stored procedures, and constraint validation, this component goes beyond a simple interface feature and adds significant technical depth to the application.
 
 ---
 
@@ -126,7 +116,7 @@ Cardinality constraints follow 0..*, 1..1 patterns taught in lecture :contentRef
 
 The ER model is translated into relational schema following lecture rules :contentReference[oaicite:3]{index=3}.
 
-```sql
+
 CREATE TABLE User (
     user_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
