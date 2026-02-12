@@ -285,6 +285,9 @@ All advanced features will be implemented using pure SQL (no ORM).
 - Query result panel
 
 The interface prioritizes database functionality and query clarity over aesthetics.
+<img width="1146" height="756" alt="Screenshot 2026-02-12 at 2 09 52 PM" src="https://github.com/user-attachments/assets/c6020e9c-afd0-4ac6-bb3e-8d3975b2210f" />
+<img width="1154" height="765" alt="Screenshot 2026-02-12 at 2 10 19 PM" src="https://github.com/user-attachments/assets/490521bf-a169-4904-a6db-2f97a60028b4" />
+
 
 ---
 
