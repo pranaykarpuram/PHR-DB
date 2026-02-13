@@ -23,12 +23,13 @@ Because it integrates natural language processing with relational database logic
 ## Usefulness
 
 Medical data is frequently kept in numerous, poorly connected systems, which is what makes our application so useful and valuable. Most commercial patient portals let users simply view their data but they are unable to perform extensive database queries, combine tables, or filter data in structured ways. To fix these problems, our system has the following features:
+
 - Centralized record storage
-- Cross-table relational querying 
-- Aggregated summaries 
+- Cross-table relational querying
+- Aggregated summaries
 - Keyword-based search across diagnoses and medications
 - Strong database integrity through constraint enforcement
-Although there are comparable solutions, like Epic MyChart, they do not support relational data exploration or structured SQL-level querying. The main goals of our program include transparency, organized queries, and database integrity.
+  Although there are comparable solutions, like Epic MyChart, they do not support relational data exploration or structured SQL-level querying. The main goals of our program include transparency, organized queries, and database integrity.
 
 ---
 
@@ -36,15 +37,15 @@ Although there are comparable solutions, like Epic MyChart, they do not support 
 
 For this project, we will use at least two real-world datasets.
 
-### 1. MIMIC-IV Clinical Dataset  
+### 1. MIMIC-IV Clinical Dataset
+
 This dataset comes from PhysioNet (MIT) and is provided in CSV format. It contains data for over 380,000 patients, along with millions of lab records. The dataset includes information such as hospital admissions, diagnoses (ICD codes), laboratory results, medications, and vital signs.
 For our project, we will use a filtered subset of the data (at least 1,000 records) so that it meets the project requirements while still remaining realistic and meaningful.
 
+### 2. CDC Public Health Datasets
 
-### 2. CDC Public Health Datasets  
 This dataset includes information on chronic disease categories, medication classifications, and public health reference ranges.
 Similar to MIMIC-IV, this dataset is publicly accessible and widely used in academic research. Using these real-world sources ensures that our project is built on credible and meaningful medical data.
-
 
 ---
 
@@ -56,22 +57,26 @@ E-R Diagram (Made using dbdiagram.io):
 The system will potentially include the following entity sets (to be finalized):
 
 User
+
 - user_id (Primary Key)
 - Name
 - email
 
 Patient
+
 - patient_id (Primary Key)
 - Birth_year
 - sex
 
 Visit
+
 - visit_id (Primary Key)
 - Admission_date
 - Discharge_date
 - visit_type
 
 Lab_Test
+
 - lab_id (Primary Key)
 - Test_name
 - Value
@@ -79,6 +84,7 @@ Lab_Test
 - timestamp
 
 Medication
+
 - med_id (Primary Key)
 - Drug_name
 - Dosage
@@ -86,17 +92,18 @@ Medication
 - end_date
 
 Diagnosis
+
 - diagnosis_id (Primary Key)
 - Icd_code
 - description
 
 Relationship sets:
+
 - User owns Patient (1-to-many)
 - Patient has Visit (1-to-many)
 - Visit includes Diagnosis (1-to-many)
 - Patient has Lab_Test (1-to-many)
 - Patient prescribed Medication (1-to-many)
-
 
 ---
 
@@ -105,20 +112,21 @@ Relationship sets:
 The ER model is translated into the following relational schema:
 
 User
+
 - user_id INT NOT NULL PRIMARY KEY
 - name VARCHAR(100) NOT NULL
 - email VARCHAR(150) NOT NULL UNIQUE
 
-
 Patient
+
 - patient_id INT NOT NULL PRIMARY KEY
 - user_id INT NOT NULL
 - birth_year INT CHECK (birth_year BETWEEN 1900 AND 2026)
 - sex CHAR(1) CHECK (sex IN ('M','F','O'))
 - FOREIGN KEY (user_id) REFERENCES User(user_id)
 
-
 Visit
+
 - visit_id INT NOT NULL PRIMARY KEY
 - patient_id INT NOT NULL
 - admission_date DATE NOT NULL
@@ -126,8 +134,8 @@ Visit
 - visit_type VARCHAR(50)
 - FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-
 Lab_Test
+
 - lab_id INT NOT NULL PRIMARY KEY
 - patient_id INT NOT NULL
 - test_name VARCHAR(100) NOT NULL
@@ -136,8 +144,8 @@ Lab_Test
 - timestamp DATETIME
 - FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-
 Medication
+
 - med_id INT NOT NULL PRIMARY KEY
 - patient_id INT NOT NULL
 - drug_name VARCHAR(100) NOT NULL
@@ -146,22 +154,21 @@ Medication
 - end_date DATE
 - FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-
 Diagnosis
+
 - diagnosis_id INT NOT NULL PRIMARY KEY
 - visit_id INT NOT NULL
 - icd_code VARCHAR(20) NOT NULL
 - description VARCHAR(255)
 - FOREIGN KEY (visit_id) REFERENCES Visit(visit_id)
 
-
 Constraints include:
+
 - Primary keys
 - Foreign keys
 - Domain constraints using CHECK
 - NOT NULL attributes
 - UNIQUE attributes
-
 
 ---
 
@@ -216,29 +223,44 @@ The system will support:
 
 ### Transactions
 
-- Atomic insertion of a Visit and associated Diagnoses.
-- Controlled isolation level to prevent inconsistent reads.
+Some actions involve multiple related inserts. For example, when adding a new visit, we may also insert several diagnoses linked to that visit. These steps must either all succeed or all fail together.
+
+We will use transactions to guarantee this behavior (atomicity). If any step fails, we roll back the entire operation so the database never ends up with partial or inconsistent records.
+
+We will also enable fallbacks for when multiple users/operations run at the same time
 
 ### Stored Procedures
 
-- `CalculateBMI(patient_id)`
-- Stored procedure to compute aggregated yearly average lab results
+Certain calculations and commonly reused queries will live inside the database as stored procedures so they stay consistent and are easy to reuse.
+Examples include:
+
+- CalculateBMI(patient_id) — computes BMI using stored height/weight data
+
+- A stored procedure that computes yearly aggregated lab statistics (e.g., average cholesterol per year)
 
 ### Triggers
 
-- Prevent insertion where `discharge_date < admission_date`
-- Automatically flag abnormal lab values based on thresholds
+Triggers let the database automatically enforce rules at the moment data is inserted or updated.
+
+We will use triggers to:
+
+Block invalid visit records (e.g., discharge_date < admission_date)
+
+Automatically flag lab results that are outside expected thresholds
 
 ### Constraints
 
-- Primary keys
-- Foreign keys
-- Domain constraints
-- NOT NULL enforcement
+To maintain strong data integrity, the database will enforce:
 
-All advanced features will be implemented using pure SQL (no ORM).
+- Primary keys (unique identifiers)
 
----
+- Foreign keys (valid table relationships)
+
+- Domain constraints (valid ranges/allowed values)
+
+- NOT NULL requirements (no missing required fields)
+
+## All advanced features will be implemented directly in SQL (no ORM).
 
 ## Low-Fidelity UI Mockup (Description)
 
@@ -264,7 +286,6 @@ All advanced features will be implemented using pure SQL (no ORM).
 The interface prioritizes database functionality and query clarity over aesthetics.
 <img width="1146" height="756" alt="Screenshot 2026-02-12 at 2 09 52 PM" src="https://github.com/user-attachments/assets/c6020e9c-afd0-4ac6-bb3e-8d3975b2210f" />
 <img width="1154" height="765" alt="Screenshot 2026-02-12 at 2 10 19 PM" src="https://github.com/user-attachments/assets/490521bf-a169-4904-a6db-2f97a60028b4" />
-
 
 ---
 
