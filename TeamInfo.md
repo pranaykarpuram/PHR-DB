@@ -21,7 +21,7 @@
 
 | Info       | Description |
 |------------|-------------|
-| Title      | Project_Title_Here |
+| Title      | PHR-DB: A Relational Personal Health Record Management System |
 | System URL | link_to_system |
 | Video Link | link_to_video |
 
