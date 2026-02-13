@@ -54,35 +54,42 @@ E-R Diagram (Made using dbdiagram.io):
 <img width="620" height="265" alt="Screenshot 2026-02-13 at 4 39 33 PM" src="https://github.com/user-attachments/assets/9adf1f73-4fba-4e1b-ac7e-a95f6f45f115" />
 
 The system will potentially include the following entity sets (to be finalized):
+
 User
 - user_id (Primary Key)
 - Name
 - email
+
 Patient
 - patient_id (Primary Key)
 - Birth_year
 - sex
+
 Visit
 - visit_id (Primary Key)
 - Admission_date
 - Discharge_date
 - visit_type
+
 Lab_Test
 - lab_id (Primary Key)
 - Test_name
 - Value
 - Unit
 - timestamp
+
 Medication
 - med_id (Primary Key)
 - Drug_name
 - Dosage
 - Start_date
 - end_date
+
 Diagnosis
 - diagnosis_id (Primary Key)
 - Icd_code
 - description
+
 Relationship sets:
 - User owns Patient (1-to-many)
 - Patient has Visit (1-to-many)
