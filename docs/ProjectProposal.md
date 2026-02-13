@@ -22,169 +22,139 @@ Because it integrates natural language processing with relational database logic
 
 ## Usefulness
 
-This application addresses the large-scale issue of fragmented medical data storage. Currently, patient portals such as Epic MyChart allow record viewing but do not support structured relational queries, advanced filtering, or aggregated exploration across visits, diagnoses, and laboratory data.
-
-Our system provides:
-
-- Centralized patient record storage.
-- Cross-table relational querying.
-- Aggregated summaries (e.g., yearly average blood pressure).
-- Keyword-based search across diagnoses and medications.
-- Integrity constraints to ensure consistent data.
-
-Unlike commercial portals, our system allows structured relational exploration while enforcing database integrity and advanced SQL functionality.
+Medical data is frequently kept in numerous, poorly connected systems, which is what makes our application so useful and valuable. Most commercial patient portals let users simply view their data but they are unable to perform extensive database queries, combine tables, or filter data in structured ways. To fix these problems, our system has the following features:
+- Centralized record storage
+- Cross-table relational querying 
+- Aggregated summaries 
+- Keyword-based search across diagnoses and medications
+- Strong database integrity through constraint enforcement
+Although there are comparable solutions, like Epic MyChart, they do not support relational data exploration or structured SQL-level querying. The main goals of our program include transparency, organized queries, and database integrity.
 
 ---
 
 ## Realness – Data Sources
 
-We will use at least two real datasets.
+For this project, we will use at least two real-world datasets.
 
 ### 1. MIMIC-IV Clinical Dataset  
-- Source: PhysioNet (MIT)
-- Format: CSV
-- Size: >380,000 patients, millions of lab records
-- Attributes: admissions, diagnoses (ICD codes), labs, medications, vitals
+This dataset comes from PhysioNet (MIT) and is provided in CSV format. It contains data for over 380,000 patients, along with millions of lab records. The dataset includes information such as hospital admissions, diagnoses (ICD codes), laboratory results, medications, and vital signs.
+For our project, we will use a filtered subset of the data (at least 1,000 records) so that it meets the project requirements while still remaining realistic and meaningful.
 
-We will use a filtered subset (>1,000 records minimum) to satisfy project requirements.
 
 ### 2. CDC Public Health Datasets  
-- Source: CDC Open Data
-- Format: CSV / XLS
-- Attributes: chronic disease categories, reference ranges, medication classifications
+This dataset includes information on chronic disease categories, medication classifications, and public health reference ranges.
+Similar to MIMIC-IV, this dataset is publicly accessible and widely used in academic research. Using these real-world sources ensures that our project is built on credible and meaningful medical data.
 
-This dataset will support lookup tables and metadata validation.
-
-Both datasets are publicly accessible and widely used in academic research.
 
 ---
 
 ## Conceptual Design (Entity-Relationship Model)
 
-Following lecture material on conceptual design :contentReference[oaicite:1]{index=1}, we define:
+E-R Diagram (Made using dbdiagram.io):
+<img width="620" height="265" alt="Screenshot 2026-02-13 at 4 39 33 PM" src="https://github.com/user-attachments/assets/9adf1f73-4fba-4e1b-ac7e-a95f6f45f115" />
 
-### Entity Sets
-
-**User**
-- user_id (Key)
-- name
+The system will potentially include the following entity sets (to be finalized):
+User
+- user_id (Primary Key)
+- Name
 - email
-
-**Patient**
-- patient_id (Key)
-- birth_year
+Patient
+- patient_id (Primary Key)
+- Birth_year
 - sex
-
-**Visit**
-- visit_id (Key)
-- admission_date
-- discharge_date
+Visit
+- visit_id (Primary Key)
+- Admission_date
+- Discharge_date
 - visit_type
-
-**Lab_Test**
-- lab_id (Key)
-- test_name
-- value
-- unit
+Lab_Test
+- lab_id (Primary Key)
+- Test_name
+- Value
+- Unit
 - timestamp
-
-**Medication**
-- med_id (Key)
-- drug_name
-- dosage
-- start_date
+Medication
+- med_id (Primary Key)
+- Drug_name
+- Dosage
+- Start_date
 - end_date
-
-**Diagnosis**
-- diagnosis_id (Key)
-- icd_code
+Diagnosis
+- diagnosis_id (Primary Key)
+- Icd_code
 - description
-
-### Relationship Sets
-
+Relationship sets:
 - User owns Patient (1-to-many)
 - Patient has Visit (1-to-many)
 - Visit includes Diagnosis (1-to-many)
 - Patient has Lab_Test (1-to-many)
 - Patient prescribed Medication (1-to-many)
 
-Cardinality constraints follow 0..*, 1..1 patterns taught in lecture :contentReference[oaicite:2]{index=2}.
 
 ---
 
 ## Logical Design (Relational Schema)
 
-The ER model is translated into relational schema following lecture rules :contentReference[oaicite:3]{index=3}.
+The ER model is translated into the following relational schema:
+
+User
+- user_id INT NOT NULL PRIMARY KEY
+- name VARCHAR(100) NOT NULL
+- email VARCHAR(150) NOT NULL UNIQUE
 
 
-CREATE TABLE User (
-    user_id INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    PRIMARY KEY (user_id)
-);
+Patient
+- patient_id INT NOT NULL PRIMARY KEY
+- user_id INT NOT NULL
+- birth_year INT CHECK (birth_year BETWEEN 1900 AND 2026)
+- sex CHAR(1) CHECK (sex IN ('M','F','O'))
+- FOREIGN KEY (user_id) REFERENCES User(user_id)
 
-CREATE TABLE Patient (
-    patient_id INT NOT NULL,
-    user_id INT NOT NULL,
-    birth_year INT CHECK (birth_year BETWEEN 1900 AND 2026),
-    sex CHAR(1) CHECK (sex IN ('M','F','O')),
-    PRIMARY KEY (patient_id),
-    FOREIGN KEY (user_id) REFERENCES User(user_id)
-);
 
-CREATE TABLE Visit (
-    visit_id INT NOT NULL,
-    patient_id INT NOT NULL,
-    admission_date DATE NOT NULL,
-    discharge_date DATE,
-    visit_type VARCHAR(50),
-    PRIMARY KEY (visit_id),
-    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
-);
+Visit
+- visit_id INT NOT NULL PRIMARY KEY
+- patient_id INT NOT NULL
+- admission_date DATE NOT NULL
+- discharge_date DATE
+- visit_type VARCHAR(50)
+- FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-CREATE TABLE Lab_Test (
-    lab_id INT NOT NULL,
-    patient_id INT NOT NULL,
-    test_name VARCHAR(100) NOT NULL,
-    value DECIMAL(10,2) NOT NULL,
-    unit VARCHAR(20),
-    timestamp DATETIME,
-    PRIMARY KEY (lab_id),
-    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
-);
 
-CREATE TABLE Medication (
-    med_id INT NOT NULL,
-    patient_id INT NOT NULL,
-    drug_name VARCHAR(100) NOT NULL,
-    dosage VARCHAR(50),
-    start_date DATE,
-    end_date DATE,
-    PRIMARY KEY (med_id),
-    FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
-);
+Lab_Test
+- lab_id INT NOT NULL PRIMARY KEY
+- patient_id INT NOT NULL
+- test_name VARCHAR(100) NOT NULL
+- value DECIMAL(10,2) NOT NULL
+- unit VARCHAR(20)
+- timestamp DATETIME
+- FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-CREATE TABLE Diagnosis (
-    diagnosis_id INT NOT NULL,
-    visit_id INT NOT NULL,
-    icd_code VARCHAR(20) NOT NULL,
-    description VARCHAR(255),
-    PRIMARY KEY (diagnosis_id),
-    FOREIGN KEY (visit_id) REFERENCES Visit(visit_id)
-);
 
-## Constraints
+Medication
+- med_id INT NOT NULL PRIMARY KEY
+- patient_id INT NOT NULL
+- drug_name VARCHAR(100) NOT NULL
+- dosage VARCHAR(50)
+- start_date DATE
+- end_date DATE
+- FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
 
-The database will enforce the following constraints:
 
-- Primary Keys
-- Foreign Keys
-- Domain constraints using `CHECK`
-- `NOT NULL` attributes
-- `UNIQUE` attributes
+Diagnosis
+- diagnosis_id INT NOT NULL PRIMARY KEY
+- visit_id INT NOT NULL
+- icd_code VARCHAR(20) NOT NULL
+- description VARCHAR(255)
+- FOREIGN KEY (visit_id) REFERENCES Visit(visit_id)
 
-These constraints ensure entity integrity, referential integrity, and domain validity as discussed in lecture.
+
+Constraints include:
+- Primary keys
+- Foreign keys
+- Domain constraints using CHECK
+- NOT NULL attributes
+- UNIQUE attributes
+
 
 ---
 
