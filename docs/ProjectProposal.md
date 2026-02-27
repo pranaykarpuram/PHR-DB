@@ -68,12 +68,6 @@ Patient
 - Birth_year
 - sex
 
-Visit
-
-- visit_id (Primary Key)
-- Admission_date
-- Discharge_date
-- visit_type
 
 Lab_Test
 
@@ -91,11 +85,22 @@ Medication
 - Start_date
 - end_date
 
-Diagnosis
+Encounter
 
-- diagnosis_id (Primary Key)
-- Icd_code
-- description
+- encounter_id (Primary Key)
+- patient_id (Foreign Key)
+- encounter_date DATE (nullable if unavailable)
+- cycle VARCHAR(20) (e.g., "2017–2018")
+- encounter_type VARCHAR(50) (e.g., "Exam", "Questionnaire")
+
+Condition
+
+- condition_id (Primary Key)
+- encounter_id (Foreign Key)
+- condition_code VARCHAR(30)
+- condition_name VARCHAR(100)
+- status VARCHAR(30) (e.g., "reported", "measured", "unknown")
+
 
 Relationship sets:
 
