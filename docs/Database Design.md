@@ -40,6 +40,7 @@ The following screenshot shows the active MySQL session, selected database, and 
 See `sql/schema.sql` for all commands
 
 #### First 2 Commands
+```sql
 -- app logins
 CREATE TABLE UserAccount (
   user_id INT NOT NULL AUTO_INCREMENT,
@@ -48,7 +49,8 @@ CREATE TABLE UserAccount (
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_useraccount_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
+```
+```sql
 -- people w seqn
 CREATE TABLE Patient (
   patient_id INT NOT NULL AUTO_INCREMENT,
@@ -66,6 +68,7 @@ CREATE TABLE Patient (
   CONSTRAINT chk_patient_sex
     CHECK (sex IN ('M', 'F', 'O'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 
 ## Data Insertion Verification
 
@@ -126,15 +129,13 @@ It joins the patient, condition, and medication tables, then uses `GROUP BY` and
 
 <img width="708" height="582" alt="image" src="https://github.com/user-attachments/assets/58baf6ea-bd05-496f-b19b-3eb2b8d0c721" />
 
-## Indexing
-
-### Indexing Strategy (`sql/index_experiments.sql`)
+## Indexing Strategy (`sql/index_experiments.sql`)
 
 We evaluated each advanced query using `EXPLAIN ANALYZE` under four configurations: a baseline with no additional experimental indexes, followed by three different indexing designs.
 
 Primary keys were not re-indexed. We focused on indexing columns used in joins, filters, and grouping conditions.
 
-#### Query 1: Average Total Cholesterol by Patient
+### Query 1: Average Total Cholesterol by Patient
 
 The indexing designs tested were:
 
@@ -145,7 +146,7 @@ The indexing designs tested were:
 
 These designs were chosen to test whether performance improves more from indexing the lab-result join path, the test-name lookup, or both together.
 
-#### Query 2: Diabetic Patients with High Cholesterol
+### Query 2: Diabetic Patients with High Cholesterol
 
 The indexing designs tested were:
 
@@ -156,7 +157,7 @@ The indexing designs tested were:
 
 These designs were chosen to compare indexing the condition-filter path, the lab-filter path, and a combined strategy.
 
-#### Query 3: Patients with Both Diabetes and Hypertension Who Take More Than One Medication
+### Query 3: Patients with Both Diabetes and Hypertension Who Take More Than One Medication
 
 The indexing designs tested were:
 
@@ -167,7 +168,7 @@ The indexing designs tested were:
 
 These designs were chosen to compare indexing the condition-matching path, the medication aggregation path, and a combined strategy.
 
-### Indexing Analysis
+## Indexing Analysis
 
 
 ## Assumptions
