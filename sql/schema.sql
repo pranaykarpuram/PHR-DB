@@ -1,7 +1,5 @@
--- phr_db main schema (mysql 8)
+-- phr_db main schema
 -- seperates users / patients / nhanes-ish stuff per erdiagam
-
-SET NAMES utf8mb4;
 
 DROP DATABASE IF EXISTS phr_db;
 CREATE DATABASE phr_db
@@ -29,7 +27,7 @@ CREATE TABLE UserAccount (
   email VARCHAR(150) NOT NULL,
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_useraccount_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- people w seqn
 CREATE TABLE Patient (
@@ -47,7 +45,7 @@ CREATE TABLE Patient (
     CHECK (birth_year BETWEEN 1900 AND 2026),
   CONSTRAINT chk_patient_sex
     CHECK (sex IN ('M', 'F', 'O'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- visits / cycles
 CREATE TABLE Encounter (
@@ -60,7 +58,7 @@ CREATE TABLE Encounter (
   CONSTRAINT fk_encounter_patient
     FOREIGN KEY (patient_id) REFERENCES Patient (patient_id)
     ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- lab names
 CREATE TABLE LabTestType (
@@ -69,7 +67,7 @@ CREATE TABLE LabTestType (
   default_unit VARCHAR(20) NULL,
   PRIMARY KEY (test_type_id),
   UNIQUE KEY uq_labtesttype_name (test_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- actual labs
 CREATE TABLE LabResult (
@@ -86,7 +84,7 @@ CREATE TABLE LabResult (
   CONSTRAINT fk_labresult_testtype
     FOREIGN KEY (test_type_id) REFERENCES LabTestType (test_type_id)
     ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- drug lookup
 CREATE TABLE Drug (
@@ -94,7 +92,7 @@ CREATE TABLE Drug (
   drug_name VARCHAR(120) NOT NULL,
   PRIMARY KEY (drug_id),
   UNIQUE KEY uq_drug_name (drug_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- who takes what
 CREATE TABLE PatientMedication (
@@ -113,7 +111,7 @@ CREATE TABLE PatientMedication (
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT chk_patmed_dates
     CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- condition lookup
 CREATE TABLE ConditionType (
@@ -122,7 +120,7 @@ CREATE TABLE ConditionType (
   condition_name VARCHAR(100) NOT NULL,
   PRIMARY KEY (condition_type_id),
   UNIQUE KEY uq_condition_code (condition_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- patient dx bridge
 CREATE TABLE PatientCondition (
@@ -138,4 +136,4 @@ CREATE TABLE PatientCondition (
   CONSTRAINT fk_patcond_type
     FOREIGN KEY (condition_type_id) REFERENCES ConditionType (condition_type_id)
     ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);

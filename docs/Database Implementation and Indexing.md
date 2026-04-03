@@ -1,12 +1,12 @@
-# PHR-DB — Stage 3 Database Design
+# PHR-DB — Stage 3 Database Implementation and Indexing
 
 ## Project description
 
-PHR-DB (Personal Health Record Database) is a course project that models application users, patients linked to NHANES participant id (`nhanes_seqn`), survey encounters, laboratory results, medications, and conditions. The goal is a normalized relational schema in MySQL 8 with integrity constraints and example analytics queries.
+PHR-DB (Personal Health Record Database) is a project that models application users, patients linked to NHANES participant id (`nhanes_seqn`), survey encounters, laboratory results, medications, and conditions. The goal for this stage is a normalized relational schema in MySQL with integrity constraints and query analytics.
 
 ## Final schema summary
 
-Nine tables (see `docs/erdiagam.md`):
+Nine tables (see `docs/erdiagram.md`):
 
 | Table               | Purpose                                                     |
 | ------------------- | ----------------------------------------------------------- |
@@ -20,25 +20,23 @@ Nine tables (see `docs/erdiagam.md`):
 | `ConditionType`     | Condition catalog                                           |
 | `PatientCondition`  | Patient–condition rows with status and cycle                |
 
-The database was implemented locally using MySQL.
+The database was implemented locally using MySQL. Data is first loaded into staging tables (defined in `sql/staging.sql`, it does have weird column names but that comes straight from the NHANES data) to avoid violating foreign key constraints and to clean raw NHANES data. A transformation pipeline (`sql/transform.sql`) then inserts into normalized tables.
 
 The following screenshot shows the active MySQL session, selected database, and tables created:
 
 <img width="1124" height="1072" alt="image" src="https://github.com/user-attachments/assets/800011f0-ec8a-4248-9db7-8373a68e9fc4" />
 
-## DDL overview
+## DDL Commands
 
-- **Database:** `phr_db`, `utf8mb4` / `utf8mb4_unicode_ci`.
-- **Surrogate keys:** `INT AUTO_INCREMENT` primary keys on all tables.
-- **Referential integrity:** `FOREIGN KEY` with `ON DELETE RESTRICT`, `ON UPDATE CASCADE` (safe defaults for class demos).
-- **Uniqueness:** `UserAccount.email`, `Patient.nhanes_seqn`, `LabTestType.test_name`, `Drug.drug_name`, `ConditionType.condition_code`.
-- **CHECK:** `Patient` birth year range and allowed `sex` values; `PatientMedication` date order when both dates present.
+### Key DDL Attributes
 
-### DDL Commands
+- `AUTO_INCREMENT` : ensures each row has a unique surrogate primary key
+- `UNIQUE KEY` : enforces uniqueness constraints to prevent duplicate entities  
+- `ON DELETE RESTRICT` : restricts deletion of referenced records to preserve referential integrity
 
-See `sql/schema.sql` for all commands
+See `sql/schema.sql` for all DDL commands
 
-#### First 2 Commands
+### First 2 Commands
 
 ```sql
 -- app logins
@@ -48,7 +46,7 @@ CREATE TABLE UserAccount (
   email VARCHAR(150) NOT NULL,
   PRIMARY KEY (user_id),
   UNIQUE KEY uq_useraccount_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 ```
 
 ```sql
@@ -68,7 +66,7 @@ CREATE TABLE Patient (
     CHECK (birth_year BETWEEN 1900 AND 2026),
   CONSTRAINT chk_patient_sex
     CHECK (sex IN ('M', 'F', 'O'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 ```
 
 ## Data Insertion Verification
