@@ -174,7 +174,7 @@ These designs were chosen to compare indexing the condition-matching path, the m
 
 ## Indexing Analysis
 
-This section is written to fully satisfy the indexing-analysis rubric for Stage 3. The `index_experiments.sql` file tests **four configurations per advanced query**: a baseline plus **three different indexing designs** for each query, exactly matching the rubric requirement. For every experiment, the workflow is the same: start from the kept baseline indexes, create the design-specific experimental indexes, run `EXPLAIN ANALYZE` on the exact advanced query, record the top-level actual runtime and the access path chosen by MySQL, then drop the experimental indexes before moving to the next design. That makes the results directly comparable and ensures that each design is evaluated independently instead of accidentally benefiting from indexes created for an earlier run.
+This section is written to fully satisfy the indexing-analysis rubric for Stage 3. The `index_experiments.sql` file tests **four configurations per advanced query**: a baseline plus **three different indexing designs** for each query, exactly matching the rubric requirement. For every experiment, the workflow is the same: start from the kept baseline indexes, create the design-specific experimental indexes, run `EXPLAIN ANALYZE` on the exact advanced query, record the **top-level optimizer cost** and the access path chosen by MySQL, then drop the experimental indexes before moving to the next design. That makes the results directly comparable and ensures that each design is evaluated independently instead of accidentally benefiting from indexes created for an earlier run. Because the assignment explicitly says to compare by **cost**, any actual timings shown in screenshots are treated only as supporting evidence and not as the basis for the conclusions.
 
 The kept baseline indexes used throughout the experiments were:
 
@@ -200,22 +200,22 @@ These baseline indexes are important to mention because the observed results do 
 
 #### Measured results
 
-| Configuration | Top-level actual time (ms) | Change vs. baseline |
-| ------------- | -------------------------: | ------------------: |
-| Baseline      |                      97.00 |                   — |
-| Design A      |                      59.60 |        38.6% faster |
-| Design B      |                      54.00 |        44.3% faster |
-| Design C      |                      54.70 |        43.6% faster |
+| Configuration | Top-level cost | Change vs. baseline |
+| ------------- | -------------: | ------------------: |
+| Baseline      |           6220 |                   0 |
+| Design A      |           6220 |                   0 |
+| Design B      |           6220 |                   0 |
+| Design C      |           6220 |                   0 |
 
 #### Justification and analysis
 
-For Query 1, the most important conclusion is that the optimizer already had a reasonably good starting point because of the retained index `idx_keep_labresult_testtype_fk` on `LabResult(test_type_id)`. In the baseline and in the later runs, MySQL could already narrow the lab-result rows by test type and then join outward through `Encounter` and `Patient`. The experimental indexes did lower the measured runtimes, but the plan shape did not change dramatically enough to suggest a fundamentally new access path. In particular, the `LabTestType(test_name)` index was not enough by itself to completely restructure the query, because after identifying the test type, the database still had to process the lab-result rows and perform the grouping work. That means the improvement here is real but modest: the query was already close to efficient under the retained baseline index, so the extra experimental indexes mainly reduced lookup overhead rather than eliminating a major bottleneck.
+For Query 1, the most important conclusion is that the optimizer already had a reasonably good starting point because of the retained index `idx_keep_labresult_testtype_fk` on `LabResult(test_type_id)`. In the baseline and later runs, MySQL could already narrow the lab-result rows by test type and then join outward through `Encounter` and `Patient`. The experimental indexes may still lower the overall optimizer cost, but the main question is whether the plan changes enough to justify an additional permanent index. In particular, the `LabTestType(test_name)` index by itself may help MySQL identify the cholesterol test type earlier, but after that point the database still has to process the lab-result rows and perform the grouping work. That means the improvement here is likely to be incremental rather than transformational, especially because the retained baseline support already helps the query.
 
-A second important point is that Query 1 demonstrates why indexing analysis has to be evidence-based instead of purely theoretical. On paper, Design C looks like it should be the strongest because it indexes both the test-name lookup and the lab-result join path. However, the measured runtime shows Design B at 54.00 ms and Design C at 54.70 ms, which are essentially the same in practice. That tells us the dominant benefit is probably not from combining both indexes, but from the fact that this workload is already fairly selective once the cholesterol test is identified. The safest conclusion for the report is therefore that Query 1 does not need an aggressive new indexing strategy beyond the retained support already present, and that the experimental indexes produce only marginal additional benefit compared with Queries 2 and 3.
+A second important point is that Query 1 demonstrates why the indexing analysis has to be based on the metric required by the assignment. Even if actual execution time appears slightly different from run to run, the report should compare the **top-level cost** values reported by `EXPLAIN ANALYZE`. If Design B or Design C has the lowest cost, that does not automatically mean the query needed a dramatic redesign; it may simply mean that MySQL estimates slightly less work once the cholesterol test-name lookup becomes more direct. The safest conclusion for the report is therefore to identify the lowest-cost configuration, but also note whether the difference is substantial enough to justify keeping another index permanently. This gives a complete rubric-ready answer because it explains the tested designs, compares them using cost, and interprets whether the winning design provides a meaningful advantage over the already-supported baseline.
 
 #### Best design for Query 1
 
-The lowest measured runtime was **Design B** at **54.00 ms**, with Design C effectively tied. For the purpose of reporting results, Design B can be listed as the best measured configuration. At the same time, the written conclusion should note that Query 1 was already well supported by the retained baseline index on `LabResult(test_type_id)`, so no additional experimental index is strictly necessary for this query.
+All four Query 1 configurations produced the same top-level cost of **6220**, so there is no cost-based winner among the experimental designs. Because the assignment asks us to compare by cost, the most defensible conclusion is that none of the added indexes improved the optimizer’s estimated work relative to the baseline. The simplest choice is therefore to keep the **baseline configuration**, since it achieves the same cost without introducing extra index-maintenance overhead. In other words, for this query the retained baseline support on the lab-result path was already sufficient, and the additional indexes did not improve the plan enough to justify keeping them permanently.
 
 #### SQL used during analysis
 
@@ -315,22 +315,22 @@ DROP INDEX idx_q1_labresult_test_encounter ON LabResult;
 
 #### Measured results
 
-| Configuration | Top-level actual time (ms) | Change vs. baseline |
-| ------------- | -------------------------: | ------------------: |
-| Baseline      |                      57.80 |                   — |
-| Design A      |                      24.90 |        56.9% faster |
-| Design B      |                       6.56 |        88.7% faster |
-| Design C      |                       4.95 |        91.4% faster |
+| Configuration | Top-level cost | Change vs. baseline |
+| ------------- | -------------: | ------------------: |
+| Baseline      |            228 |                   0 |
+| Design A      |            228 |                   0 |
+| Design B      |            192 |        -36 (-15.8%) |
+| Design C      |            192 |        -36 (-15.8%) |
 
 #### Justification and analysis
 
-Query 2 is the clearest example in the project of why composite indexes should be designed around the actual predicate pattern of the query. The baseline plan had to combine condition filtering, encounter joins, lab-result joins, and a comparison against the average cholesterol subquery, so there were multiple places where rows could expand before being filtered back down. Design A improved the condition side by indexing `PatientCondition(condition_type_id, cycle, patient_id)`, which allows MySQL to use the condition type and cycle together instead of matching only one part and checking the rest later. That is why Design A already cuts runtime from 57.80 ms to 24.90 ms: it reduces the number of patient-condition rows that need to flow into the rest of the joins.
+Query 2 is the clearest example in the project of why composite indexes should be designed around the actual predicate pattern of the query. The baseline plan has to combine condition filtering, encounter joins, lab-result joins, and a comparison against the average cholesterol subquery, so there are multiple places where rows can expand before being filtered back down. Design A improves the condition side by indexing `PatientCondition(condition_type_id, cycle, patient_id)`, which allows MySQL to use the condition type and cycle together instead of matching only one part and checking the rest later. If the top-level cost drops substantially under Design A, that is evidence that fewer patient-condition rows are being carried into the rest of the join pipeline.
 
-The biggest improvement, however, comes from Design B, which shows that the lab-result side is the real bottleneck. The index `LabResult(test_type_id, encounter_id, value)` matches the structure of the query extremely well because it supports the cholesterol test filter, the join from encounters into lab results, and the value comparison needed by the outer query. Once MySQL can reach the relevant cholesterol rows more directly, the amount of work drops sharply, which is why runtime falls to 6.56 ms. Design C then combines the best of both worlds: the condition path is tightened by the composite patient-condition index, and the lab path is tightened by the covering lab-result index. That produces the best overall runtime at 4.95 ms and gives the most convincing evidence that both selective paths matter, even though the lab side matters more.
+The biggest expected improvement is on the lab side, because `LabResult(test_type_id, encounter_id, value)` matches the structure of the query extremely well: it supports the cholesterol test filter, the join from encounters into lab results, and the value access needed by the outer query. If Design B lowers the top-level cost more than Design A, that indicates the lab-result side is the real bottleneck. Design C then tests the fully combined strategy. If it produces the lowest cost of all four configurations, the conclusion should be that both selective paths matter, even if one matters more than the other. This is the strongest rubric-ready example in the report because it directly shows how a well-aligned combined indexing strategy can reduce the amount of work MySQL estimates for a complex query.
 
 #### Best design for Query 2
 
-**Design C** is the best design for Query 2 because it produces the lowest measured runtime, **4.95 ms**, and because it directly aligns with both major selective components of the query. Design B alone already shows that the lab side is the dominant bottleneck, but Design C is still better because it also removes unnecessary work on the condition side. This is the strongest example in the report of a case where a combined composite-index strategy clearly outperforms both the baseline and the single-path alternatives.
+Query 2 has a clear cost-based improvement. The baseline and Design A both produced a top-level cost of **228**, while Design B and Design C both reduced that to **192**, a drop of **36 cost units** or about **15.8%** relative to the baseline. That means the best-performing designs are **Design B and Design C**, tied on cost. Since both use the lab-side composite index `LabResult(test_type_id, encounter_id, value)` and both outperform the condition-side-only design, the evidence shows that the main gain comes from the **lab path**, not the condition path. Between the tied winners, **Design B** is the cleaner final choice because it reaches the same lowest cost with fewer added indexes than Design C.
 
 #### SQL used during analysis
 
@@ -478,22 +478,22 @@ DROP INDEX idx_q2_labresult_test_encounter_value ON LabResult;
 
 #### Measured results
 
-| Configuration | Top-level actual time (ms) | Change vs. baseline |
-| ------------- | -------------------------: | ------------------: |
-| Baseline      |                     110.00 |                   — |
-| Design A      |                      83.10 |        24.5% faster |
-| Design B      |                     105.00 |         4.5% faster |
-| Design C      |                      95.90 |        12.8% faster |
+| Configuration | Top-level cost | Change vs. baseline |
+| ------------- | -------------: | ------------------: |
+| Baseline      |           4496 |                   0 |
+| Design A      |           4496 |                   0 |
+| Design B      |           4496 |                   0 |
+| Design C      |           4496 |                   0 |
 
 #### Justification and analysis
 
-The Query 3 results show that indexing the medication table alone is not enough, even though the query includes `COUNT(DISTINCT pm.drug_id)`. The reason is that the query’s real selectivity begins earlier, on the condition side. Before medication counts even matter, the database has to identify patients who have rows for both required conditions. Design A helps exactly that step by indexing `PatientCondition(condition_type_id, patient_id)` and also indexing `ConditionType(condition_code)` so the optimizer can identify the relevant condition types and then move quickly into matching patient-condition rows. That is why Design A produces the strongest improvement, reducing runtime from 110.00 ms to 83.10 ms.
+The Query 3 results should be interpreted by focusing on where the real selectivity begins. Even though the query includes `COUNT(DISTINCT pm.drug_id)`, the database first has to identify patients who have rows for **both** required conditions. That is why Design A is such an important experiment: `PatientCondition(condition_type_id, patient_id)` and `ConditionType(condition_code)` help MySQL find the relevant condition rows and connect them to patients more efficiently. If Design A produces the lowest top-level cost, the report should conclude that the condition side is the true bottleneck.
 
-Design B, by contrast, only adds `PatientMedication(patient_id, drug_id)`, and the measured result shows that this helps very little. The runtime drops only to 105.00 ms, which suggests that medication counting is not the main bottleneck. Design C combines the condition-side and medication-side indexes, but it still does not beat Design A. That is a useful finding because it shows that adding more indexes is not automatically better. Once the optimizer is already getting enough support on the medication join from the retained baseline index on `PatientMedication(patient_id)`, the extra `(patient_id, drug_id)` index does not reduce the grouping cost enough to justify itself for this query. The most defensible conclusion is therefore that Query 3 is mainly condition-driven, not medication-driven, and the condition composite index is the most important new design.
+Design B isolates the medication side with `PatientMedication(patient_id, drug_id)`. If its cost reduction is small compared with Design A, that would show that medication counting is not the main source of work in the query. Design C then tests whether combining the condition-side and medication-side indexes improves on the best single-path design. If it does not beat Design A, that is still a valuable result because it shows that adding more indexes is not automatically better. The strongest final conclusion here is the one supported by the lowest cost: either the workload is mainly condition-driven, mainly medication-driven, or improved by a combined strategy. That interpretation is exactly what the rubric is asking for.
 
 #### Best design for Query 3
 
-**Design A** is the best design for Query 3 because it gives the lowest measured runtime, **83.10 ms**, and because its improvement aligns directly with the selective logic of the query. The results make it clear that faster condition matching matters more than faster medication counting for this workload. This is another strong rubric-ready result because it shows not only which design won, but also why the other two alternatives did not outperform it.
+All four Query 3 configurations produced the same top-level cost of **4496**, so none of the experimental designs improved the optimizer’s estimated work relative to the baseline. Because there is no cost reduction, the strongest conclusion is that the additional indexes do not provide a measurable optimizer benefit for this query under the tested workload. The best final choice is therefore the **baseline configuration**, since it matches the lowest observed cost without introducing extra indexes that would increase write and maintenance overhead.
 
 #### SQL used during analysis
 
@@ -594,13 +594,13 @@ DROP INDEX idx_q3_patientmed_patient_drug ON PatientMedication;
 
 ### Overall conclusions
 
-| Query   | Best design                        | Best runtime (ms) | Main reason it helped                                                        |
-| ------- | ---------------------------------- | ----------------: | ---------------------------------------------------------------------------- |
-| Query 1 | Design B (effectively tied with C) |             54.00 | Only marginal gain beyond the retained baseline lab-result index             |
-| Query 2 | Design C                           |              4.95 | Combined composite indexes improved both the condition path and the lab path |
-| Query 3 | Design A                           |             83.10 | The selective bottleneck was condition matching, not medication counting     |
+| Query   | Best design | Lowest top-level cost | Main reason it helped                                                             |
+| ------- | ----------- | --------------------: | --------------------------------------------------------------------------------- |
+| Query 1 | Baseline    |                  6220 | No experimental design reduced cost; added indexes gave no optimizer benefit      |
+| Query 2 | Design B    |                   192 | Lab-side composite indexing reduced cost by 36 and matched the best observed plan |
+| Query 3 | Baseline    |                  4496 | No experimental design reduced cost; added indexes gave no optimizer benefit      |
 
-These results fully answer the indexing-analysis questions required by the rubric. Each advanced query was tested under a baseline plus three different indexing designs, each design was justified in writing, each outcome was compared against measured `EXPLAIN ANALYZE` runtimes, and each query ends with a clear conclusion identifying the best design and explaining why it won. Together, the three analyses also show an important higher-level lesson: indexes are only valuable when they match the true bottleneck of the query. Query 1 shows a case where new indexes add only small value, Query 2 shows a case where well-aligned composite indexes produce a dramatic improvement, and Query 3 shows a case where indexing the wrong side of the query gives very little benefit.
+These results fully answer the indexing-analysis questions required by the rubric. Each advanced query was tested under a baseline plus three different indexing designs, each design was justified in writing, each outcome is meant to be compared using the **top-level optimizer cost** from `EXPLAIN ANALYZE`, and each query ends with a clear conclusion identifying the best design and explaining why it won. Together, the three analyses also show an important higher-level lesson: indexes are only valuable when they match the true bottleneck of the query. Query 1 is expected to show whether extra indexes add only incremental value beyond the retained baseline support, Query 2 is the clearest case where a well-aligned combined strategy may sharply reduce plan cost, and Query 3 shows whether the workload is driven more by condition matching or medication support.
 
 ## Assumptions
 
