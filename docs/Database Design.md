@@ -20,6 +20,11 @@ Nine tables (see `docs/erdiagam.md`):
 | `ConditionType` | Condition catalog |
 | `PatientCondition` | Patient–condition rows with status and cycle |
 
+The database was implemented locally using MySQL.
+
+The following screenshot shows the active MySQL session, selected database, and tables created:
+
+<img width="1124" height="1072" alt="image" src="https://github.com/user-attachments/assets/800011f0-ec8a-4248-9db7-8373a68e9fc4" />
 
 
 ## DDL overview
@@ -30,6 +35,11 @@ Nine tables (see `docs/erdiagam.md`):
 - **Uniqueness:** `UserAccount.email`, `Patient.nhanes_seqn`, `LabTestType.test_name`, `Drug.drug_name`, `ConditionType.condition_code`.
 - **CHECK:** `Patient` birth year range and allowed `sex` values; `PatientMedication` date order when both dates present.
 
+### DDL Commands
+
+See `sql/schema.sql` for all commands
+
+#### First 2 Commands
 -- app logins
 CREATE TABLE UserAccount (
   user_id INT NOT NULL AUTO_INCREMENT,
@@ -57,129 +67,108 @@ CREATE TABLE Patient (
     CHECK (sex IN ('M', 'F', 'O'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- visits / cycles
-CREATE TABLE Encounter (
-  encounter_id INT NOT NULL AUTO_INCREMENT,
-  patient_id INT NOT NULL,
-  encounter_date DATE NULL,
-  cycle VARCHAR(20) NOT NULL,
-  encounter_type VARCHAR(50) NOT NULL,
-  PRIMARY KEY (encounter_id),
-  CONSTRAINT fk_encounter_patient
-    FOREIGN KEY (patient_id) REFERENCES Patient (patient_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+## Data Insertion Verification
 
--- lab names
-CREATE TABLE LabTestType (
-  test_type_id INT NOT NULL AUTO_INCREMENT,
-  test_name VARCHAR(100) NOT NULL,
-  default_unit VARCHAR(20) NULL,
-  PRIMARY KEY (test_type_id),
-  UNIQUE KEY uq_labtesttype_name (test_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+We inserted data into multiple tables using NHANES datasets.
 
--- actual labs
-CREATE TABLE LabResult (
-  lab_result_id INT NOT NULL AUTO_INCREMENT,
-  encounter_id INT NOT NULL,
-  test_type_id INT NOT NULL,
-  value DECIMAL(10, 2) NOT NULL,
-  unit VARCHAR(20) NULL,
-  result_time DATETIME NULL,
-  PRIMARY KEY (lab_result_id),
-  CONSTRAINT fk_labresult_encounter
-    FOREIGN KEY (encounter_id) REFERENCES Encounter (encounter_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_labresult_testtype
-    FOREIGN KEY (test_type_id) REFERENCES LabTestType (test_type_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+The following queries verify row counts:
 
--- drug lookup
-CREATE TABLE Drug (
-  drug_id INT NOT NULL AUTO_INCREMENT,
-  drug_name VARCHAR(120) NOT NULL,
-  PRIMARY KEY (drug_id),
-  UNIQUE KEY uq_drug_name (drug_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```sql
+SELECT COUNT(*) AS patient_rows FROM Patient;
+SELECT COUNT(*) AS encounter_rows FROM Encounter;
+SELECT COUNT(*) AS labresult_rows FROM LabResult;
+SELECT COUNT(*) AS patientmed_rows FROM PatientMedication;
+SELECT COUNT(*) AS patientcondition_rows FROM PatientCondition;
+```
 
--- who takes what
-CREATE TABLE PatientMedication (
-  patient_med_id INT NOT NULL AUTO_INCREMENT,
-  patient_id INT NOT NULL,
-  drug_id INT NOT NULL,
-  dosage VARCHAR(60) NULL,
-  start_date DATE NULL,
-  end_date DATE NULL,
-  PRIMARY KEY (patient_med_id),
-  CONSTRAINT fk_patmed_patient
-    FOREIGN KEY (patient_id) REFERENCES Patient (patient_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_patmed_drug
-    FOREIGN KEY (drug_id) REFERENCES Drug (drug_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT chk_patmed_dates
-    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+The results confirm that multiple tables contain well over 1000 rows.
 
--- condition lookup
-CREATE TABLE ConditionType (
-  condition_type_id INT NOT NULL AUTO_INCREMENT,
-  condition_code VARCHAR(30) NOT NULL,
-  condition_name VARCHAR(100) NOT NULL,
-  PRIMARY KEY (condition_type_id),
-  UNIQUE KEY uq_condition_code (condition_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+### Patient Table
+<img width="776" height="236" alt="image" src="https://github.com/user-attachments/assets/f36e9afd-d9e1-43a4-9c6d-17103653165a" />
 
--- patient dx bridge
-CREATE TABLE PatientCondition (
-  patient_condition_id INT NOT NULL AUTO_INCREMENT,
-  patient_id INT NOT NULL,
-  condition_type_id INT NOT NULL,
-  status VARCHAR(30) NULL,
-  cycle VARCHAR(20) NOT NULL,
-  PRIMARY KEY (patient_condition_id),
-  CONSTRAINT fk_patcond_patient
-    FOREIGN KEY (patient_id) REFERENCES Patient (patient_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_patcond_type
-    FOREIGN KEY (condition_type_id) REFERENCES ConditionType (condition_type_id)
-    ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+### Encounter Table
+<img width="830" height="216" alt="image" src="https://github.com/user-attachments/assets/46be08c6-a7ae-46a0-8727-71237f228b10" />
 
+### LabResult Table
+<img width="830" height="214" alt="image" src="https://github.com/user-attachments/assets/d447c6e1-dfed-4812-a208-a1cb4bd1f9c6" />
+
+### PatientMedication Table
+<img width="930" height="212" alt="image" src="https://github.com/user-attachments/assets/f052dd96-e834-47b7-9c6a-eacea30bb15c" />
+
+### PatientCondition Table
+<img width="1032" height="220" alt="image" src="https://github.com/user-attachments/assets/bb433d65-4064-4751-a185-cde95a53425f" />
 
 ## Advanced Queries (`sql/queries.sql`)
 
-#### 1. Average Total Cholesterol by Patient
+### 1. Average Total Cholesterol by Patient
 
 This query computes the average total cholesterol for each patient.
 
 It joins `Patient`, `Encounter`, `LabResult`, and `LabTestType`, filters for **Total Cholesterol**, and uses `AVG` and `COUNT` to summarize results.
 
+<img width="930" height="582" alt="image" src="https://github.com/user-attachments/assets/513feab8-46b2-4163-8615-06c56d2df442" />
 
-#### 2. Diabetic Patients with High Cholesterol (Subquery)
+
+### 2. Diabetic Patients with High Cholesterol (Subquery)
 
 This query finds patients with diabetes whose cholesterol is above the overall average.
 
 It joins patient, condition, and lab tables, filters for `DIABETES` and **Total Cholesterol**, and uses a subquery to compare each value against the global average.
 
+<img width="1010" height="574" alt="image" src="https://github.com/user-attachments/assets/8d3172cb-9da4-454a-a5da-c0cef9703236" />
 
-#### 3. Patients with Both Diabetes and Hypertension Who Take More Than One Medication
+
+### 3. Patients with Both Diabetes and Hypertension Who Take More Than One Medication
 
 This query finds patients who have both diabetes and hypertension and are taking more than one medication.
 
 It joins the patient, condition, and medication tables, then uses `GROUP BY` and `HAVING` to keep only patients who match both conditions and have more than one distinct medication.
 
-## Indexing plan (`sql/indexes.sql`)
+<img width="708" height="582" alt="image" src="https://github.com/user-attachments/assets/58baf6ea-bd05-496f-b19b-3eb2b8d0c721" />
 
-Secondary indexes target join and filter columns used by the three queries:
+## Indexing
 
-- `LabResult (encounter_id, test_type_id)` — supports resolving results to encounters and test types.
-- `PatientCondition (cycle)` and `(patient_id, cycle)` — supports condition filters tied to cycle.
-- `Encounter (cycle)` — supports grouping or filtering encounters by NHANES cycle.
+### Indexing Strategy (`sql/index_experiments.sql`)
 
-Primary keys are not re-indexed. InnoDB already maintains indexes for foreign-key columns; these indexes are **additional** structures for experiments with `EXPLAIN ANALYZE`.
+We evaluated each advanced query using `EXPLAIN ANALYZE` under four configurations: a baseline with no additional experimental indexes, followed by three different indexing designs.
+
+Primary keys were not re-indexed. We focused on indexing columns used in joins, filters, and grouping conditions.
+
+#### Query 1: Average Total Cholesterol by Patient
+
+The indexing designs tested were:
+
+- **Baseline:** no additional experimental indexes
+- **Design A:** `LabResult(test_type_id, encounter_id)`
+- **Design B:** `LabTestType(test_name)`
+- **Design C:** `LabTestType(test_name)` and `LabResult(test_type_id, encounter_id)`
+
+These designs were chosen to test whether performance improves more from indexing the lab-result join path, the test-name lookup, or both together.
+
+#### Query 2: Diabetic Patients with High Cholesterol
+
+The indexing designs tested were:
+
+- **Baseline:** no additional experimental indexes
+- **Design A:** `ConditionType(condition_code)` and `PatientCondition(condition_type_id, cycle, patient_id)`
+- **Design B:** `LabTestType(test_name)` and `LabResult(test_type_id, encounter_id, value)`
+- **Design C:** `ConditionType(condition_code)`, `PatientCondition(condition_type_id, cycle, patient_id)`, `LabTestType(test_name)`, and `LabResult(test_type_id, encounter_id, value)`
+
+These designs were chosen to compare indexing the condition-filter path, the lab-filter path, and a combined strategy.
+
+#### Query 3: Patients with Both Diabetes and Hypertension Who Take More Than One Medication
+
+The indexing designs tested were:
+
+- **Baseline:** no additional experimental indexes
+- **Design A:** `ConditionType(condition_code)` and `PatientCondition(condition_type_id, patient_id)`
+- **Design B:** `PatientMedication(patient_id, drug_id)`
+- **Design C:** `ConditionType(condition_code)`, `PatientCondition(condition_type_id, patient_id)`, and `PatientMedication(patient_id, drug_id)`
+
+These designs were chosen to compare indexing the condition-matching path, the medication aggregation path, and a combined strategy.
+
+### Indexing Analysis
+
 
 ## Assumptions
 
