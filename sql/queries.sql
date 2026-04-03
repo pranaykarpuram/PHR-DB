@@ -13,7 +13,8 @@ JOIN LabResult lr ON lr.encounter_id = e.encounter_id
 JOIN LabTestType t ON t.test_type_id = lr.test_type_id
 WHERE t.test_name = 'Total Cholesterol'
 GROUP BY p.patient_id, p.nhanes_seqn
-ORDER BY p.patient_id;
+ORDER BY p.patient_id
+LIMIT 15;
 
 -- diabetics w high chol vs cohort avg (subquery)
 SELECT DISTINCT
@@ -35,18 +36,21 @@ WHERE c.condition_code = 'DIABETES'
     FROM LabResult lr2
     JOIN LabTestType t2 ON t2.test_type_id = lr2.test_type_id
     WHERE t2.test_name = 'Total Cholesterol'
-  );
+  )
+LIMIT 15;
 
--- lab counts by cycle + union total
-SELECT cycle, lab_result_rows
-FROM (
-  SELECT e.cycle, COUNT(*) AS lab_result_rows
-  FROM LabResult lr
-  JOIN Encounter e ON e.encounter_id = lr.encounter_id
-  WHERE e.cycle IN ('2015-2016', '2017-2018')
-  GROUP BY e.cycle
-) AS by_cycle
-UNION
-SELECT 'ALL_CYCLES' AS cycle, COUNT(*) AS lab_result_rows
-FROM LabResult
-ORDER BY cycle;
+-- patients with both diabetes and hypertension who take more than one medication.
+SELECT
+  p.patient_id,
+  p.nhanes_seqn,
+  COUNT(DISTINCT pm.drug_id) AS medication_count
+FROM Patient p
+JOIN PatientCondition pc ON pc.patient_id = p.patient_id
+JOIN ConditionType ct ON ct.condition_type_id = pc.condition_type_id
+JOIN PatientMedication pm ON pm.patient_id = p.patient_id
+WHERE ct.condition_code IN ('DIABETES', 'HYPERTENSION')
+GROUP BY p.patient_id, p.nhanes_seqn
+HAVING COUNT(DISTINCT ct.condition_code) = 2  
+   AND COUNT(DISTINCT pm.drug_id) > 1
+ORDER BY medication_count DESC, p.patient_id
+LIMIT 15;

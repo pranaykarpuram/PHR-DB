@@ -144,7 +144,7 @@ SELECT DISTINCT
 FROM staging_questionnaire q
 JOIN Patient p ON p.nhanes_seqn = q.SEQN
 JOIN ConditionType ct ON ct.condition_code = 'DIABETES'
-WHERE q.DIQ010 IS NOT NULL;
+WHERE q.DIQ010 = 1;
 
 INSERT INTO PatientCondition (patient_id, condition_type_id, status, cycle)
 SELECT DISTINCT
@@ -155,7 +155,7 @@ SELECT DISTINCT
 FROM staging_questionnaire q
 JOIN Patient p ON p.nhanes_seqn = q.SEQN
 JOIN ConditionType ct ON ct.condition_code = 'HYPERTENSION'
-WHERE q.BPQ020 IS NOT NULL;
+WHERE q.BPQ020 = 1;
 
 INSERT INTO Drug (drug_name)
 SELECT DISTINCT TRIM(m.RXDDRUG)
