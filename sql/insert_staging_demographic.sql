@@ -1,7 +1,7 @@
 USE phr_db;
 
 INSERT INTO staging_demographic (SEQN, SDDSRVYR, RIAGENDR, RIDAGEYR) VALUES
-(73557, 8, 1, 69),
+(73557, 8, 1, 95),
 (73558, 8, 1, 54),
 (73559, 8, 1, 72),
 (73560, 8, 1, 9),
