@@ -1,4 +1,4 @@
-import { apiGet } from './client';
+import { apiGet, apiRequest } from './client';
 import type {
   PatientListItem,
   EncounterRow,
@@ -47,4 +47,35 @@ export function fetchPatientMedications(patientId: number) {
 
 export function fetchPatientConditions(patientId: number) {
   return apiGet<ConditionRow[]>(`/patients/${patientId}/conditions`);
+}
+
+export interface MedicationUpsertInput {
+  patient_id?: number;
+  drug_name: string;
+  dosage?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface MedicationCrudRow extends MedicationRow {
+  patient_id: number;
+  nhanes_seqn: number;
+}
+
+export function createMedication(input: MedicationUpsertInput) {
+  return apiRequest<MedicationCrudRow>('POST', '/medications', input);
+}
+
+export function updateMedication(patientMedId: number, input: MedicationUpsertInput) {
+  return apiRequest<MedicationCrudRow>('PATCH', `/medications/${patientMedId}`, input);
+}
+
+export function deleteMedication(patientMedId: number) {
+  return apiRequest<{ ok: boolean }>('DELETE', `/medications/${patientMedId}`);
+}
+
+export function discontinueMedication(patientMedId: number, endDate: string) {
+  return apiRequest<MedicationCrudRow>('POST', `/medications/${patientMedId}/discontinue`, {
+    end_date: endDate,
+  });
 }

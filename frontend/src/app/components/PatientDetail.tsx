@@ -20,6 +20,10 @@ import {
   fetchPatientLabs,
   fetchPatientMedications,
   fetchPatientConditions,
+  createMedication,
+  updateMedication,
+  deleteMedication,
+  discontinueMedication,
 } from '../api/patients';
 
 interface PatientDetailProps {
@@ -54,6 +58,15 @@ export function PatientDetail({ patient, onClose }: PatientDetailProps) {
   const [labs, setLabs] = useState<LabsResponse | null>(null);
   const [medications, setMedications] = useState<MedicationRow[]>([]);
   const [conditions, setConditions] = useState<ConditionRow[]>([]);
+  const [medForm, setMedForm] = useState({
+    drug_name: '',
+    dosage: '',
+    start_date: '',
+    end_date: '',
+  });
+  const [editingMedId, setEditingMedId] = useState<number | null>(null);
+  const [medActionBusy, setMedActionBusy] = useState(false);
+  const [medActionError, setMedActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,6 +101,11 @@ export function PatientDetail({ patient, onClose }: PatientDetailProps) {
       cancelled = true;
     };
   }, [patient.patient_id]);
+
+  async function reloadMedications(patientId: number) {
+    const med = await fetchPatientMedications(patientId);
+    setMedications(med);
+  }
 
   const tabs = [
     { id: 'profile' as const, label: 'Profile' },
@@ -345,44 +363,312 @@ export function PatientDetail({ patient, onClose }: PatientDetailProps) {
               )}
 
               {activeTab === 'medications' && (
-                <div className="bg-white rounded-xl border border-border overflow-hidden">
-                  {medications.length > 0 ? (
-                    <table className="w-full">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
-                            Drug Name
-                          </th>
-                          <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
-                            Dosage
-                          </th>
-                          <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
-                            Start Date
-                          </th>
-                          <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
-                            End Date
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {medications.map((med, idx) => (
-                          <tr
-                            key={med.patient_med_id}
-                            className={idx % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
-                          >
-                            <td className="px-6 py-4 text-sm">{med.drug_name}</td>
-                            <td className="px-6 py-4 text-sm">{med.dosage ?? '—'}</td>
-                            <td className="px-6 py-4 text-sm">{med.start_date ?? '—'}</td>
-                            <td className="px-6 py-4 text-sm">{med.end_date ?? '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="px-6 py-12 text-center text-muted-foreground">
-                      No medication records available
+                <div className="space-y-4">
+                  <div className="bg-white rounded-xl p-4 border border-border">
+                    <h3 className="mb-3">Add Medication</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                      <input
+                        value={medForm.drug_name}
+                        onChange={(e) =>
+                          setMedForm((prev) => ({ ...prev, drug_name: e.target.value }))
+                        }
+                        placeholder="Drug name"
+                        className="px-3 py-2 rounded-lg border border-border"
+                      />
+                      <input
+                        value={medForm.dosage}
+                        onChange={(e) =>
+                          setMedForm((prev) => ({ ...prev, dosage: e.target.value }))
+                        }
+                        placeholder="Dosage"
+                        className="px-3 py-2 rounded-lg border border-border"
+                      />
+                      <input
+                        type="date"
+                        value={medForm.start_date}
+                        onChange={(e) =>
+                          setMedForm((prev) => ({ ...prev, start_date: e.target.value }))
+                        }
+                        className="px-3 py-2 rounded-lg border border-border"
+                      />
+                      <input
+                        type="date"
+                        value={medForm.end_date}
+                        onChange={(e) =>
+                          setMedForm((prev) => ({ ...prev, end_date: e.target.value }))
+                        }
+                        className="px-3 py-2 rounded-lg border border-border"
+                      />
+                    </div>
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        disabled={medActionBusy}
+                        onClick={async () => {
+                          if (!medForm.drug_name.trim()) return;
+                          setMedActionBusy(true);
+                          setMedActionError(null);
+                          try {
+                            await createMedication({
+                              patient_id: head.patient_id,
+                              drug_name: medForm.drug_name.trim(),
+                              dosage: medForm.dosage || null,
+                              start_date: medForm.start_date || null,
+                              end_date: medForm.end_date || null,
+                            });
+                            await reloadMedications(head.patient_id);
+                            setMedForm({
+                              drug_name: '',
+                              dosage: '',
+                              start_date: '',
+                              end_date: '',
+                            });
+                          } catch (e) {
+                            setMedActionError(
+                              e instanceof Error ? e.message : 'Failed to create medication'
+                            );
+                          } finally {
+                            setMedActionBusy(false);
+                          }
+                        }}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                      >
+                        Add Medication
+                      </button>
+                    </div>
+                  </div>
+
+                  {medActionError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                      {medActionError}
                     </div>
                   )}
+
+                  <div className="bg-white rounded-xl border border-border overflow-hidden">
+                    {medications.length > 0 ? (
+                      <table className="w-full">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
+                              Drug Name
+                            </th>
+                            <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
+                              Dosage
+                            </th>
+                            <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
+                              Start Date
+                            </th>
+                            <th className="text-left px-6 py-3 text-sm text-muted-foreground font-medium">
+                              End Date
+                            </th>
+                            <th className="text-right px-6 py-3 text-sm text-muted-foreground font-medium">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {medications.map((med, idx) => {
+                            const isEditing = editingMedId === med.patient_med_id;
+                            return (
+                              <tr
+                                key={med.patient_med_id}
+                                className={idx % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
+                              >
+                                <td className="px-6 py-4 text-sm">
+                                  <input
+                                    value={
+                                      isEditing ? medForm.drug_name : med.drug_name
+                                    }
+                                    disabled={!isEditing}
+                                    onChange={(e) =>
+                                      setMedForm((prev) => ({
+                                        ...prev,
+                                        drug_name: e.target.value,
+                                      }))
+                                    }
+                                    className={`px-2 py-1 rounded border w-full ${
+                                      isEditing ? 'border-border' : 'border-transparent bg-transparent'
+                                    }`}
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <input
+                                    value={
+                                      isEditing ? medForm.dosage : (med.dosage ?? '')
+                                    }
+                                    disabled={!isEditing}
+                                    onChange={(e) =>
+                                      setMedForm((prev) => ({
+                                        ...prev,
+                                        dosage: e.target.value,
+                                      }))
+                                    }
+                                    className={`px-2 py-1 rounded border w-full ${
+                                      isEditing ? 'border-border' : 'border-transparent bg-transparent'
+                                    }`}
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <input
+                                    type="date"
+                                    value={
+                                      isEditing
+                                        ? medForm.start_date
+                                        : (med.start_date ?? '')
+                                    }
+                                    disabled={!isEditing}
+                                    onChange={(e) =>
+                                      setMedForm((prev) => ({
+                                        ...prev,
+                                        start_date: e.target.value,
+                                      }))
+                                    }
+                                    className={`px-2 py-1 rounded border w-full ${
+                                      isEditing ? 'border-border' : 'border-transparent bg-transparent'
+                                    }`}
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-sm">
+                                  <input
+                                    type="date"
+                                    value={
+                                      isEditing ? medForm.end_date : (med.end_date ?? '')
+                                    }
+                                    disabled={!isEditing}
+                                    onChange={(e) =>
+                                      setMedForm((prev) => ({
+                                        ...prev,
+                                        end_date: e.target.value,
+                                      }))
+                                    }
+                                    className={`px-2 py-1 rounded border w-full ${
+                                      isEditing ? 'border-border' : 'border-transparent bg-transparent'
+                                    }`}
+                                  />
+                                </td>
+                                <td className="px-6 py-4 text-right space-x-2">
+                                  {!isEditing ? (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="text-sm text-blue-600 hover:underline"
+                                        onClick={() => {
+                                          setEditingMedId(med.patient_med_id);
+                                          setMedForm({
+                                            drug_name: med.drug_name,
+                                            dosage: med.dosage ?? '',
+                                            start_date: med.start_date ?? '',
+                                            end_date: med.end_date ?? '',
+                                          });
+                                        }}
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-sm text-rose-600 hover:underline"
+                                        onClick={async () => {
+                                          setMedActionBusy(true);
+                                          setMedActionError(null);
+                                          try {
+                                            await deleteMedication(med.patient_med_id);
+                                            await reloadMedications(head.patient_id);
+                                          } catch (e) {
+                                            setMedActionError(
+                                              e instanceof Error
+                                                ? e.message
+                                                : 'Failed to delete medication'
+                                            );
+                                          } finally {
+                                            setMedActionBusy(false);
+                                          }
+                                        }}
+                                      >
+                                        Delete
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-sm text-emerald-700 hover:underline"
+                                        onClick={async () => {
+                                          setMedActionBusy(true);
+                                          setMedActionError(null);
+                                          try {
+                                            const today = new Date()
+                                              .toISOString()
+                                              .slice(0, 10);
+                                            await discontinueMedication(
+                                              med.patient_med_id,
+                                              today
+                                            );
+                                            await reloadMedications(head.patient_id);
+                                          } catch (e) {
+                                            setMedActionError(
+                                              e instanceof Error
+                                                ? e.message
+                                                : 'Failed to discontinue medication'
+                                            );
+                                          } finally {
+                                            setMedActionBusy(false);
+                                          }
+                                        }}
+                                      >
+                                        Discontinue
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="text-sm text-blue-600 hover:underline"
+                                        onClick={async () => {
+                                          setMedActionBusy(true);
+                                          setMedActionError(null);
+                                          try {
+                                            await updateMedication(
+                                              med.patient_med_id,
+                                              {
+                                                drug_name: medForm.drug_name.trim(),
+                                                dosage: medForm.dosage || null,
+                                                start_date: medForm.start_date || null,
+                                                end_date: medForm.end_date || null,
+                                              }
+                                            );
+                                            await reloadMedications(head.patient_id);
+                                            setEditingMedId(null);
+                                          } catch (e) {
+                                            setMedActionError(
+                                              e instanceof Error
+                                                ? e.message
+                                                : 'Failed to update medication'
+                                            );
+                                          } finally {
+                                            setMedActionBusy(false);
+                                          }
+                                        }}
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-sm text-muted-foreground hover:underline"
+                                        onClick={() => setEditingMedId(null)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="px-6 py-12 text-center text-muted-foreground">
+                        No medication records available
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

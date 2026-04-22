@@ -25,6 +25,12 @@ npm run dev
 - Patients: `GET http://localhost:3001/api/patients` (query params: `search`, `sex`, `birthYearMin`, `birthYearMax`, `conditionCode`, `limit`, `offset`)
 - Patient detail: `GET /api/patients/:id`, plus `/encounters`, `/labs`, `/medications`, `/conditions`
 - Analytics: `GET /api/analytics/overview`
+- Medications overview: `GET /api/medications/overview`
+- Medication CRUD:
+  - `POST /api/medications`
+  - `PATCH /api/medications/:patientMedId`
+  - `DELETE /api/medications/:patientMedId`
+  - `POST /api/medications/:patientMedId/discontinue` (transaction-backed + stored procedure call)
 
 SQL is **parameterized** in `server/queries/` (no ORM). Reference copy of intent: `sql/frontend_queries.sql`.
 
@@ -38,9 +44,67 @@ npm run dev
 
 Vite proxies `/api` → `http://localhost:3001` (see `frontend/vite.config.ts`). Run the **API first**, then open the Vite URL (usually `http://localhost:5173`).
 
-## Triggers
+## Stage 4 advanced DB features
 
-None added. Aggregates use normal `SELECT` + `JOIN` + `COUNT` / `GROUP BY`.
+Load advanced SQL objects after schema + transform steps:
+
+```bash
+mysql -u root -p < docs/stage4_advanced_programs.sql
+```
+
+This file adds:
+
+- `sp_discontinue_medication` stored procedure
+- `trg_patmed_before_insert` trigger
+- `trg_patmed_before_update` trigger
+- `MedicationWorkflowLog` and `MedicationTriggerAlert` helper tables
+
+Frontend-to-feature mapping:
+
+- **Create / Update medication** in patient modal → triggers fire on invalid date ordering and normalize data.
+- **Discontinue medication** button in patient modal → backend route runs:
+  - `SET TRANSACTION ISOLATION LEVEL READ COMMITTED`
+  - `START TRANSACTION`
+  - `CALL sp_discontinue_medication(...)`
+  - workflow log insert
+  - `COMMIT` or `ROLLBACK`
+
+## Keyword search behavior
+
+Top search now matches:
+
+- patient SEQN (`nhanes_seqn`)
+- medication name (`Drug.drug_name`)
+- condition code/name (`ConditionType.condition_code`, `ConditionType.condition_name`)
+
+## Stage 4 quick test flow (simple)
+
+1. Start both apps:
+   - `cd server && npm run dev`
+   - `cd frontend && npm run dev`
+2. In MySQL, run:
+   - `USE phr_db;`
+   - `SOURCE docs/stage4_advanced_programs.sql;`
+3. Open the app, go to **Patients**, open any patient, then go to **Medications**.
+4. Test CRUD in the modal:
+   - add a medication
+   - edit and save it
+   - delete one row
+5. Test trigger behavior:
+   - create or edit a medication with `end_date` earlier than `start_date`
+   - verify DB logged it:
+     - `SELECT * FROM MedicationTriggerAlert ORDER BY trigger_alert_id DESC LIMIT 5;`
+6. Test stored procedure + transaction:
+   - click **Discontinue** on a medication row
+   - verify DB log:
+     - `SELECT * FROM MedicationWorkflowLog ORDER BY workflow_log_id DESC LIMIT 10;`
+7. Test keyword search in top bar:
+   - search a SEQN fragment
+   - search a medication name
+   - search a condition code or condition name
+8. For submission:
+   - include `docs/stage4_advanced_programs.sql`
+   - tag the release as `stage.4.2`
 
 ## Project layout
 
