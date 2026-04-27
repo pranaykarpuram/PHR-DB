@@ -78,6 +78,48 @@ export interface AnalyticsOverview {
   cycleDistribution: { cycle: string; count: number }[];
 }
 
+export type AssistantMetric =
+  | 'patient_count'
+  | 'lab_stat'
+  | 'condition_distribution'
+  | 'top_medications';
+
+export type AssistantStatistic = 'count' | 'avg' | 'min' | 'max';
+
+export interface AssistantControls {
+  metric: AssistantMetric;
+  statistic?: AssistantStatistic;
+  conditions?: string[];
+  conditionMode?: 'any' | 'all';
+  labTest?: string;
+  sex?: 'M' | 'F' | 'O';
+  birthYearMin?: number;
+  birthYearMax?: number;
+  limit?: number;
+}
+
+export interface AssistantRequest {
+  question?: string;
+  controls?: AssistantControls;
+}
+
+export interface AssistantMatchedContext {
+  label: string;
+  table: string;
+  field?: string;
+}
+
+export interface AssistantResponse {
+  answer: string;
+  sql: string;
+  params: unknown[];
+  metric: string;
+  rows: Record<string, unknown>[];
+  matchedContext: AssistantMatchedContext[];
+  suggestions: string[];
+  unsupported?: boolean;
+}
+
 /** Card order matches LabTestType names from transform.sql */
 export const LAB_SUMMARY_ORDER = [
   'Total Cholesterol',

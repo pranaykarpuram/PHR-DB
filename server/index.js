@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import patientsRouter from './routes/patients.js';
 import analyticsRouter from './routes/analytics.js';
+import assistantRouter from './routes/assistant.js';
 import labsPageRouter from './routes/labsPage.js';
 import medicationsPageRouter from './routes/medicationsPage.js';
 import conditionsPageRouter from './routes/conditionsPage.js';
@@ -21,6 +22,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/patients', patientsRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/assistant', assistantRouter);
 app.use('/api/labs', labsPageRouter);
 app.use('/api/medications', medicationsPageRouter);
 app.use('/api/conditions', conditionsPageRouter);

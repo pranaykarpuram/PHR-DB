@@ -21,3 +21,15 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
   const res = await fetch(url);
   return parseJson<T>(res);
 }
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const url = `/api${path.startsWith('/') ? path : `/${path}`}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return parseJson<T>(res);
+}
