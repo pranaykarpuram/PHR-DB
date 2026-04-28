@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { fetchAnalyticsOverview } from '../api/analytics';
 import type { AnalyticsOverview } from '../types';
+import { AnalyticsAssistant } from './AnalyticsAssistant';
 
 export function Analytics() {
   const [data, setData] = useState<AnalyticsOverview | null>(null);
@@ -82,6 +83,8 @@ export function Analytics() {
 
       {!loading && !error && data && (
         <>
+          <AnalyticsAssistant data={data} />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-xl p-6 border border-border">
               <div className="mb-6">
