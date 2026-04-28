@@ -17,8 +17,28 @@ export function buildPatientListQuery(filters) {
   const params = [];
 
   if (filters.search) {
-    where.push('CAST(p.nhanes_seqn AS CHAR) LIKE ?');
-    params.push(`%${String(filters.search).trim()}%`);
+    where.push(`(
+      CAST(p.nhanes_seqn AS CHAR) LIKE ?
+      OR EXISTS (
+        SELECT 1
+        FROM PatientMedication pm_s
+        INNER JOIN Drug d_s ON d_s.drug_id = pm_s.drug_id
+        WHERE pm_s.patient_id = p.patient_id
+          AND d_s.drug_name LIKE ?
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM PatientCondition pc_s
+        INNER JOIN ConditionType ct_s ON ct_s.condition_type_id = pc_s.condition_type_id
+        WHERE pc_s.patient_id = p.patient_id
+          AND (
+            ct_s.condition_code LIKE ?
+            OR ct_s.condition_name LIKE ?
+          )
+      )
+    )`);
+    const like = `%${String(filters.search).trim()}%`;
+    params.push(like, like, like, like);
   }
   if (filters.sex) {
     where.push('p.sex = ?');
