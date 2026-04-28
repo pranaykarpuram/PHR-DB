@@ -22,14 +22,28 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
   return parseJson<T>(res);
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+
+export async function apiRequest<T>(
+  method: 'POST' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: Record<string, unknown>
+): Promise<T> {
   const url = `/api${path.startsWith('/') ? path : `/${path}`}`;
+
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: body ? JSON.stringify(body) : undefined,
   });
+
   return parseJson<T>(res);
+}
+
+export async function apiPost<T>(
+  path: string,
+  body: unknown
+): Promise<T> {
+  return apiRequest<T>('POST', path, body as Record<string, unknown>);
 }
