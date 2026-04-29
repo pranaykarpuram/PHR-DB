@@ -23,7 +23,11 @@
 |------------|-------------|
 | Title      | PHR-DB: A Relational Personal Health Record Management System |
 | System URL | link_to_system |
-| Video Link | link_to_video |
+| Video Link | Attached below |
+
+
+https://github.com/user-attachments/assets/6aa75eb5-6921-41c7-8cac-489220563890
+
 
 ---
 
