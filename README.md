@@ -1,4 +1,15 @@
-# sp26-cs411-team075-hydd (PHR-DB)
+# PHR-DB
+
+Relational personal health-record system (CS 411) — MySQL schema + staging/ETL, Node/Express API, React UI. Built on NHANES participant data with transactional medication workflows (triggers + stored procedures) and a deterministic NL→SQL assistant.
+
+## Demo
+
+<!-- DEMO_VIDEO -->
+<!-- Drop a YouTube / Loom / Drive embed or GIF below this line -->
+
+_Demo video coming soon._
+
+---
 
 Team hydd — CS 411 personal health record database + minimal API + React UI.
 
